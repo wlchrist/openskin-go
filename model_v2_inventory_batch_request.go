@@ -21,7 +21,9 @@ var _ MappedNullable = &V2InventoryBatchRequest{}
 
 // V2InventoryBatchRequest struct for V2InventoryBatchRequest
 type V2InventoryBatchRequest struct {
-	SteamIds             []string `json:"steam_ids"`
+	Proxy                *V2InventoryRequestProxy `json:"proxy,omitempty"`
+	Freshness            *V2InventoryFreshness    `json:"freshness,omitempty"`
+	SteamIds             []string                 `json:"steam_ids"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -43,6 +45,70 @@ func NewV2InventoryBatchRequest(steamIds []string) *V2InventoryBatchRequest {
 func NewV2InventoryBatchRequestWithDefaults() *V2InventoryBatchRequest {
 	this := V2InventoryBatchRequest{}
 	return &this
+}
+
+// GetProxy returns the Proxy field value if set, zero value otherwise.
+func (o *V2InventoryBatchRequest) GetProxy() V2InventoryRequestProxy {
+	if o == nil || IsNil(o.Proxy) {
+		var ret V2InventoryRequestProxy
+		return ret
+	}
+	return *o.Proxy
+}
+
+// GetProxyOk returns a tuple with the Proxy field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *V2InventoryBatchRequest) GetProxyOk() (*V2InventoryRequestProxy, bool) {
+	if o == nil || IsNil(o.Proxy) {
+		return nil, false
+	}
+	return o.Proxy, true
+}
+
+// HasProxy returns a boolean if a field has been set.
+func (o *V2InventoryBatchRequest) HasProxy() bool {
+	if o != nil && !IsNil(o.Proxy) {
+		return true
+	}
+
+	return false
+}
+
+// SetProxy gets a reference to the given V2InventoryRequestProxy and assigns it to the Proxy field.
+func (o *V2InventoryBatchRequest) SetProxy(v V2InventoryRequestProxy) {
+	o.Proxy = &v
+}
+
+// GetFreshness returns the Freshness field value if set, zero value otherwise.
+func (o *V2InventoryBatchRequest) GetFreshness() V2InventoryFreshness {
+	if o == nil || IsNil(o.Freshness) {
+		var ret V2InventoryFreshness
+		return ret
+	}
+	return *o.Freshness
+}
+
+// GetFreshnessOk returns a tuple with the Freshness field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *V2InventoryBatchRequest) GetFreshnessOk() (*V2InventoryFreshness, bool) {
+	if o == nil || IsNil(o.Freshness) {
+		return nil, false
+	}
+	return o.Freshness, true
+}
+
+// HasFreshness returns a boolean if a field has been set.
+func (o *V2InventoryBatchRequest) HasFreshness() bool {
+	if o != nil && !IsNil(o.Freshness) {
+		return true
+	}
+
+	return false
+}
+
+// SetFreshness gets a reference to the given V2InventoryFreshness and assigns it to the Freshness field.
+func (o *V2InventoryBatchRequest) SetFreshness(v V2InventoryFreshness) {
+	o.Freshness = &v
 }
 
 // GetSteamIds returns the SteamIds field value
@@ -79,6 +145,12 @@ func (o V2InventoryBatchRequest) MarshalJSON() ([]byte, error) {
 
 func (o V2InventoryBatchRequest) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
+	if !IsNil(o.Proxy) {
+		toSerialize["proxy"] = o.Proxy
+	}
+	if !IsNil(o.Freshness) {
+		toSerialize["freshness"] = o.Freshness
+	}
 	toSerialize["steam_ids"] = o.SteamIds
 
 	for key, value := range o.AdditionalProperties {
@@ -123,6 +195,8 @@ func (o *V2InventoryBatchRequest) UnmarshalJSON(data []byte) (err error) {
 	additionalProperties := make(map[string]interface{})
 
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
+		delete(additionalProperties, "proxy")
+		delete(additionalProperties, "freshness")
 		delete(additionalProperties, "steam_ids")
 		o.AdditionalProperties = additionalProperties
 	}

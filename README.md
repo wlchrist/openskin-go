@@ -5,7 +5,7 @@ Typed Go client for the OpenSkin Platform API.
 ## Install
 
 ```sh
-go get github.com/wlchrist/openskin-go@v0.1.0
+go get github.com/wlchrist/openskin-go@v0.2.0
 ```
 
 ## Example

@@ -66,6 +66,21 @@ type PlatformV2API interface {
 	DecodeV2InspectExecute(r ApiDecodeV2InspectRequest) (*V2DecodeInspectResponse, *http.Response, error)
 
 	/*
+		FetchV2InventoryWithRequestProxy Fetch a CS2 inventory through a request-scoped proxy
+
+		Reads an acceptable shared public snapshot when available; otherwise fetches the public Steam inventory only through the HTTP(S) proxy supplied in this request. Proxy configuration and credentials remain request-scoped, and proxy failures return a sanitized upstream error with platform and direct fallback disabled.
+
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@param steamId
+		@return ApiFetchV2InventoryWithRequestProxyRequest
+	*/
+	FetchV2InventoryWithRequestProxy(ctx context.Context, steamId string) ApiFetchV2InventoryWithRequestProxyRequest
+
+	// FetchV2InventoryWithRequestProxyExecute executes the request
+	//  @return V2GetInventoryResponse
+	FetchV2InventoryWithRequestProxyExecute(r ApiFetchV2InventoryWithRequestProxyRequest) (*V2GetInventoryResponse, *http.Response, error)
+
+	/*
 		GetLatestV2CatalogRelease Read the latest catalog release
 
 		Returns the latest release only after verifying its Ed25519 signature with the configured trusted key. A published release cannot be changed.
@@ -200,7 +215,7 @@ type PlatformV2API interface {
 	/*
 		GetV2Inventory Read a CS2 inventory
 
-		Returns any public Steam inventory with one record per asset and exact Valve-provided item state when available, including wear, paint seed, applied stickers, charms or keychains with pattern and offsets, StatTrak, and name tag. A Platform API key authenticates the API caller, and a publicly visible Steam inventory is the owner's sole requirement.
+		Returns any public Steam inventory with one record per asset and exact Valve-provided item state when available. Ordinary reads return the first saved public observation at any age and avoid a Steam request. An explicit max_age_seconds may fetch a newer observation while retaining the saved copy. A successful force_refresh request replaces it; a private response invalidates it. A Platform API key authenticates the API caller, and a publicly visible Steam inventory is the owner's sole requirement.
 
 		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 		@param steamId
@@ -215,7 +230,7 @@ type PlatformV2API interface {
 	/*
 		GetV2InventoryBatch Resolve up to 20 CS2 inventories
 
-		Results preserve input order and report failures per SteamID.
+		Results preserve input order and report failures per SteamID. An optional freshness object applies one policy to the whole batch; omitted fields use scalar defaults.
 
 		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 		@return ApiGetV2InventoryBatchRequest
@@ -933,6 +948,178 @@ func (a *PlatformV2APIService) DecodeV2InspectExecute(r ApiDecodeV2InspectReques
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 403 {
+			var v V2PlatformErrorResponse
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiFetchV2InventoryWithRequestProxyRequest struct {
+	ctx                     context.Context
+	ApiService              PlatformV2API
+	steamId                 string
+	v2InventoryFetchRequest *V2InventoryFetchRequest
+}
+
+func (r ApiFetchV2InventoryWithRequestProxyRequest) V2InventoryFetchRequest(v2InventoryFetchRequest V2InventoryFetchRequest) ApiFetchV2InventoryWithRequestProxyRequest {
+	r.v2InventoryFetchRequest = &v2InventoryFetchRequest
+	return r
+}
+
+func (r ApiFetchV2InventoryWithRequestProxyRequest) Execute() (*V2GetInventoryResponse, *http.Response, error) {
+	return r.ApiService.FetchV2InventoryWithRequestProxyExecute(r)
+}
+
+/*
+FetchV2InventoryWithRequestProxy Fetch a CS2 inventory through a request-scoped proxy
+
+Reads an acceptable shared public snapshot when available; otherwise fetches the public Steam inventory only through the HTTP(S) proxy supplied in this request. Proxy configuration and credentials remain request-scoped, and proxy failures return a sanitized upstream error with platform and direct fallback disabled.
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param steamId
+	@return ApiFetchV2InventoryWithRequestProxyRequest
+*/
+func (a *PlatformV2APIService) FetchV2InventoryWithRequestProxy(ctx context.Context, steamId string) ApiFetchV2InventoryWithRequestProxyRequest {
+	return ApiFetchV2InventoryWithRequestProxyRequest{
+		ApiService: a,
+		ctx:        ctx,
+		steamId:    steamId,
+	}
+}
+
+// Execute executes the request
+//
+//	@return V2GetInventoryResponse
+func (a *PlatformV2APIService) FetchV2InventoryWithRequestProxyExecute(r ApiFetchV2InventoryWithRequestProxyRequest) (*V2GetInventoryResponse, *http.Response, error) {
+	var (
+		localVarHTTPMethod  = http.MethodPost
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue *V2GetInventoryResponse
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PlatformV2APIService.FetchV2InventoryWithRequestProxy")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/v2/inventories/{steam_id}/fetch"
+	localVarPath = strings.Replace(localVarPath, "{"+"steam_id"+"}", url.PathEscape(parameterValueToString(r.steamId, "steamId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.v2InventoryFetchRequest == nil {
+		return localVarReturnValue, nil, reportError("v2InventoryFetchRequest is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	// body params
+	localVarPostBody = r.v2InventoryFetchRequest
+	if r.ctx != nil {
+		// API Key Authentication
+		if auth, ok := r.ctx.Value(ContextAPIKeys).(map[string]APIKey); ok {
+			if apiKey, ok := auth["PlatformAPIKey"]; ok {
+				var key string
+				if apiKey.Prefix != "" {
+					key = apiKey.Prefix + " " + apiKey.Key
+				} else {
+					key = apiKey.Key
+				}
+				localVarHeaderParams["X-API-Key"] = key
+			}
+		}
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		if localVarHTTPResponse.StatusCode == 400 {
+			var v V2PlatformErrorResponse
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
+		}
+		if localVarHTTPResponse.StatusCode == 401 {
+			var v V2PlatformErrorResponse
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
+		}
+		if localVarHTTPResponse.StatusCode == 403 {
+			var v V2PlatformErrorResponse
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
+		}
+		if localVarHTTPResponse.StatusCode == 502 {
 			var v V2PlatformErrorResponse
 			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
 			if err != nil {
@@ -2325,9 +2512,30 @@ func (a *PlatformV2APIService) GetV2HealthExecute(r ApiGetV2HealthRequest) (*V2G
 }
 
 type ApiGetV2InventoryRequest struct {
-	ctx        context.Context
-	ApiService PlatformV2API
-	steamId    string
+	ctx                 context.Context
+	ApiService          PlatformV2API
+	steamId             string
+	maxAgeSeconds       *int32
+	forceRefresh        *bool
+	staleIfErrorSeconds *int32
+}
+
+// Maximum observation age before attempting Steam. If omitted, use the saved observation at any age. Cannot accompany force_refresh&#x3D;true.
+func (r ApiGetV2InventoryRequest) MaxAgeSeconds(maxAgeSeconds int32) ApiGetV2InventoryRequest {
+	r.maxAgeSeconds = &maxAgeSeconds
+	return r
+}
+
+// Attempt Steam even when a cached observation qualifies; a successful public response replaces the saved durable observation. Default false.
+func (r ApiGetV2InventoryRequest) ForceRefresh(forceRefresh bool) ApiGetV2InventoryRequest {
+	r.forceRefresh = &forceRefresh
+	return r
+}
+
+// Maximum observation age allowed only after a Steam failure or rate limit; default 1800.
+func (r ApiGetV2InventoryRequest) StaleIfErrorSeconds(staleIfErrorSeconds int32) ApiGetV2InventoryRequest {
+	r.staleIfErrorSeconds = &staleIfErrorSeconds
+	return r
 }
 
 func (r ApiGetV2InventoryRequest) Execute() (*V2GetInventoryResponse, *http.Response, error) {
@@ -2337,7 +2545,7 @@ func (r ApiGetV2InventoryRequest) Execute() (*V2GetInventoryResponse, *http.Resp
 /*
 GetV2Inventory Read a CS2 inventory
 
-Returns any public Steam inventory with one record per asset and exact Valve-provided item state when available, including wear, paint seed, applied stickers, charms or keychains with pattern and offsets, StatTrak, and name tag. A Platform API key authenticates the API caller, and a publicly visible Steam inventory is the owner's sole requirement.
+Returns any public Steam inventory with one record per asset and exact Valve-provided item state when available. Ordinary reads return the first saved public observation at any age and avoid a Steam request. An explicit max_age_seconds may fetch a newer observation while retaining the saved copy. A successful force_refresh request replaces it; a private response invalidates it. A Platform API key authenticates the API caller, and a publicly visible Steam inventory is the owner's sole requirement.
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 	@param steamId
@@ -2374,6 +2582,15 @@ func (a *PlatformV2APIService) GetV2InventoryExecute(r ApiGetV2InventoryRequest)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if r.maxAgeSeconds != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "max_age_seconds", r.maxAgeSeconds, "form", "")
+	}
+	if r.forceRefresh != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "force_refresh", r.forceRefresh, "form", "")
+	}
+	if r.staleIfErrorSeconds != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "stale_if_error_seconds", r.staleIfErrorSeconds, "form", "")
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
@@ -2426,6 +2643,17 @@ func (a *PlatformV2APIService) GetV2InventoryExecute(r ApiGetV2InventoryRequest)
 		newErr := &GenericOpenAPIError{
 			body:  localVarBody,
 			error: localVarHTTPResponse.Status,
+		}
+		if localVarHTTPResponse.StatusCode == 400 {
+			var v V2PlatformErrorResponse
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 401 {
 			var v V2PlatformErrorResponse
@@ -2481,7 +2709,7 @@ func (r ApiGetV2InventoryBatchRequest) Execute() (*V2InventoryBatchResponse, *ht
 /*
 GetV2InventoryBatch Resolve up to 20 CS2 inventories
 
-Results preserve input order and report failures per SteamID.
+Results preserve input order and report failures per SteamID. An optional freshness object applies one policy to the whole batch; omitted fields use scalar defaults.
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 	@return ApiGetV2InventoryBatchRequest
@@ -2572,6 +2800,17 @@ func (a *PlatformV2APIService) GetV2InventoryBatchExecute(r ApiGetV2InventoryBat
 		newErr := &GenericOpenAPIError{
 			body:  localVarBody,
 			error: localVarHTTPResponse.Status,
+		}
+		if localVarHTTPResponse.StatusCode == 400 {
+			var v V2PlatformErrorResponse
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 401 {
 			var v V2PlatformErrorResponse
