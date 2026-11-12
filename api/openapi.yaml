@@ -2048,9 +2048,11 @@ paths:
   /v2/inventories/{steam_id}:
     get:
       description: "Returns any public Steam inventory with one record per asset and\
-        \ exact Valve-provided item state when available, including wear, paint seed,\
-        \ applied stickers, charms or keychains with pattern and offsets, StatTrak,\
-        \ and name tag. A Platform API key authenticates the API caller, and a publicly\
+        \ exact Valve-provided item state when available. Ordinary reads return the\
+        \ first saved public observation at any age and avoid a Steam request. An\
+        \ explicit max_age_seconds may fetch a newer observation while retaining the\
+        \ saved copy. A successful force_refresh request replaces it; a private response\
+        \ invalidates it. A Platform API key authenticates the API caller, and a publicly\
         \ visible Steam inventory is the owner's sole requirement."
       operationId: getV2Inventory
       parameters:
@@ -2062,6 +2064,37 @@ paths:
           pattern: "^7656119[0-9]{10}$"
           type: string
         style: simple
+      - description: "Maximum observation age before attempting Steam. If omitted,\
+          \ use the saved observation at any age. Cannot accompany force_refresh=true."
+        explode: true
+        in: query
+        name: max_age_seconds
+        required: false
+        schema:
+          maximum: 604800
+          minimum: 0
+          type: integer
+        style: form
+      - description: Attempt Steam even when a cached observation qualifies; a successful
+          public response replaces the saved durable observation. Default false.
+        explode: true
+        in: query
+        name: force_refresh
+        required: false
+        schema:
+          type: boolean
+        style: form
+      - description: Maximum observation age allowed only after a Steam failure or
+          rate limit; default 1800.
+        explode: true
+        in: query
+        name: stale_if_error_seconds
+        required: false
+        schema:
+          maximum: 604800
+          minimum: 0
+          type: integer
+        style: form
       responses:
         "200":
           content:
@@ -2069,6 +2102,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/V2GetInventoryResponse"
           description: Normalized inventory snapshot
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V2PlatformErrorResponse"
+          description: Invalid freshness policy (invalid_inventory_freshness)
         "401":
           $ref: "#/components/responses/V2Unauthorized"
         "403":
@@ -2079,9 +2118,63 @@ paths:
       tags:
       - Platform v2
       x-openskin-availability: production
+  /v2/inventories/{steam_id}/fetch:
+    post:
+      description: "Reads an acceptable shared public snapshot when available; otherwise\
+        \ fetches the public Steam inventory only through the HTTP(S) proxy supplied\
+        \ in this request. Proxy configuration and credentials remain request-scoped,\
+        \ and proxy failures return a sanitized upstream error with platform and direct\
+        \ fallback disabled."
+      operationId: fetchV2InventoryWithRequestProxy
+      parameters:
+      - explode: false
+        in: path
+        name: steam_id
+        required: true
+        schema:
+          pattern: "^7656119[0-9]{10}$"
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/V2InventoryFetchRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V2GetInventoryResponse"
+          description: Normalized inventory snapshot
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V2PlatformErrorResponse"
+          description: Invalid request or proxy
+        "401":
+          $ref: "#/components/responses/V2Unauthorized"
+        "403":
+          $ref: "#/components/responses/V2Forbidden"
+        "502":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V2PlatformErrorResponse"
+          description: Proxy or Steam upstream error
+      security:
+      - PlatformAPIKey: []
+      summary: Fetch a CS2 inventory through a request-scoped proxy
+      tags:
+      - Platform v2
+      x-openskin-availability: production
   /v2/inventories/batch:
     post:
-      description: Results preserve input order and report failures per SteamID.
+      description: Results preserve input order and report failures per SteamID. An
+        optional freshness object applies one policy to the whole batch; omitted fields
+        use scalar defaults.
       operationId: getV2InventoryBatch
       requestBody:
         content:
@@ -2096,6 +2189,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/V2InventoryBatchResponse"
           description: Ordered inventory results with per-entry data or typed error
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V2PlatformErrorResponse"
+          description: Invalid freshness policy (invalid_inventory_freshness)
         "401":
           $ref: "#/components/responses/V2Unauthorized"
         "403":
@@ -2884,6 +2983,111 @@ paths:
       security:
       - PlatformAPIKey: []
       summary: Renew a Steam Community session
+      tags:
+      - Platform v2 automation
+      x-openskin-availability: production
+  /v2/steam/accounts/{account_id}/partner-inventory/fetch:
+    post:
+      description: Queues a private read of the trade-eligible CS2 assets Steam exposes
+        to one connected viewer account. The optional partner token and proxy credentials
+        are encrypted immediately. A supplied proxy handles every page and retry;
+        the request fails rather than switching to another egress path. The result
+        represents trade-eligible coverage; trade creation and complete owner coverage
+        remain separate operations.
+      operationId: fetchV2SteamPartnerInventory
+      parameters:
+      - $ref: "#/components/parameters/V2AccountID"
+      - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/V2SteamPartnerInventoryRequest"
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V2CommandReceipt"
+          description: Partner inventory fetch queued
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V2PlatformErrorResponse"
+          description: Invalid partner inventory request
+        "401":
+          $ref: "#/components/responses/V2Unauthorized"
+        "403":
+          $ref: "#/components/responses/V2Forbidden"
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V2PlatformErrorResponse"
+          description: Connected viewer account not found
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V2PlatformErrorResponse"
+          description: A partner inventory command is already outstanding for this
+            viewer account
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V2PlatformErrorResponse"
+          description: Steam automation or encrypted custody unavailable
+      security:
+      - PlatformAPIKey: []
+      summary: Fetch a Steam partner trade inventory
+      tags:
+      - Platform v2 automation
+      x-openskin-availability: production
+  /v2/steam/accounts/{account_id}/partner-inventory/{command_id}:
+    get:
+      description: Returns the tenant-private trade-eligible observation produced
+        by one completed partner-inventory command. Public inventory caching remains
+        isolated to public observations.
+      operationId: getV2SteamPartnerInventory
+      parameters:
+      - $ref: "#/components/parameters/V2AccountID"
+      - explode: false
+        in: path
+        name: command_id
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V2GetSteamPartnerInventoryResponse"
+          description: Command-bound partner inventory observation
+        "401":
+          $ref: "#/components/responses/V2Unauthorized"
+        "403":
+          $ref: "#/components/responses/V2Forbidden"
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V2PlatformErrorResponse"
+          description: Command or partner observation not found
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/V2PlatformErrorResponse"
+          description: Inventory normalization unavailable
+      security:
+      - PlatformAPIKey: []
+      summary: Read an authenticated Steam partner inventory
       tags:
       - Platform v2 automation
       x-openskin-availability: production
@@ -7621,8 +7825,39 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/V2InventorySnapshot"
+    V2InventoryFetchRequest:
+      additionalProperties: false
+      example:
+        freshness:
+          max_age_seconds: 48434
+          force_refresh: true
+          stale_if_error_seconds: 364540
+        proxy:
+          scheme: http
+          host: host
+          port: 9607
+          username: username
+          password: password
+      properties:
+        freshness:
+          $ref: "#/components/schemas/V2InventoryFreshness"
+        proxy:
+          $ref: "#/components/schemas/V2InventoryRequestProxy"
+      required:
+      - freshness
+      - proxy
     V2InventoryBatchRequest:
       example:
+        proxy:
+          scheme: http
+          host: host
+          port: 9607
+          username: username
+          password: password
+        freshness:
+          max_age_seconds: 48434
+          force_refresh: true
+          stale_if_error_seconds: 364540
         steam_ids:
         - steam_ids
         - steam_ids
@@ -7630,6 +7865,10 @@ components:
         - steam_ids
         - steam_ids
       properties:
+        proxy:
+          $ref: "#/components/schemas/V2InventoryRequestProxy"
+        freshness:
+          $ref: "#/components/schemas/V2InventoryFreshness"
         steam_ids:
           items:
             type: string
@@ -9035,6 +9274,99 @@ components:
           writeOnly: true
       required:
       - web_api_key
+    V2SteamPartnerInventoryRequest:
+      additionalProperties: false
+      example:
+        partner_steam_id64: partner_steam_id64
+        trade_offer_token: trade_offer_token
+        proxy: ""
+      properties:
+        partner_steam_id64:
+          pattern: "^7656119[0-9]{10}$"
+          type: string
+        trade_offer_token:
+          description: Optional token from the target's Steam trade URL. Encrypted
+            immediately and never returned.
+          maxLength: 128
+          type: string
+          writeOnly: true
+        proxy:
+          allOf:
+          - $ref: "#/components/schemas/V2InventoryRequestProxy"
+          description: Optional request-scoped HTTP(S) proxy used for every page and
+            retry. Supply username and password together. Credentials are encrypted
+            immediately and excluded from results and errors. A proxy failure terminates
+            the request rather than switching egress paths.
+      required:
+      - partner_steam_id64
+    V2GetSteamPartnerInventoryResponse:
+      example:
+        data:
+          coverage: trade_eligible
+          snapshot:
+            steam_id: steam_id
+            app_id: 0
+            context_id: "2"
+            observed_at: 2000-01-23T04:56:07.000+00:00
+            source: source
+            cache:
+              status: miss
+              stale: true
+            assets:
+            - asset_id: asset_id
+              class_id: class_id
+              instance_id: instance_id
+              quantity: 6
+              item:
+                id: 1
+                market_hash_name: market_hash_name
+                type: type
+                weapon: weapon
+                skin: skin
+                exterior: exterior
+                rarity: rarity
+                stattrak: true
+                souvenir: true
+                phase: phase
+                definition_id: 0
+                paint_index: 0
+                catalog_matched: true
+                render: ""
+              prices:
+              - "{}"
+              - "{}"
+              inspect: "{}"
+            - asset_id: asset_id
+              class_id: class_id
+              instance_id: instance_id
+              quantity: 6
+              item:
+                id: 1
+                market_hash_name: market_hash_name
+                type: type
+                weapon: weapon
+                skin: skin
+                exterior: exterior
+                rarity: rarity
+                stattrak: true
+                souvenir: true
+                phase: phase
+                definition_id: 0
+                paint_index: 0
+                catalog_matched: true
+                render: ""
+              prices:
+              - "{}"
+              - "{}"
+              inspect: "{}"
+            count: 2
+            quantity: 7
+            valuation: "{}"
+      properties:
+        data:
+          $ref: "#/components/schemas/V2SteamPartnerInventoryObservation"
+      required:
+      - data
     V2GetAuthenticatedSteamInventoryResponse:
       example:
         data:
@@ -14481,6 +14813,54 @@ components:
       - source
       - steam_id
       - valuation
+    V2InventoryFreshness:
+      description: One policy for every batch entry. Only a successful force_refresh
+        replaces an existing saved observation. Explicit max_age_seconds cannot accompany
+        force_refresh=true.
+      example:
+        max_age_seconds: 48434
+        force_refresh: true
+        stale_if_error_seconds: 364540
+      properties:
+        max_age_seconds:
+          maximum: 604800
+          minimum: 0
+          type: integer
+        force_refresh:
+          type: boolean
+        stale_if_error_seconds:
+          maximum: 604800
+          minimum: 0
+          type: integer
+    V2InventoryRequestProxy:
+      additionalProperties: false
+      example:
+        scheme: http
+        host: host
+        port: 9607
+        username: username
+        password: password
+      properties:
+        scheme:
+          enum:
+          - http
+          - https
+          type: string
+        host:
+          type: string
+        port:
+          maximum: 65535
+          minimum: 1
+          type: integer
+        username:
+          type: string
+        password:
+          format: password
+          type: string
+      required:
+      - host
+      - port
+      - scheme
     V2InventoryBatchResult:
       example:
         steam_id: steam_id
@@ -15306,6 +15686,81 @@ components:
       - in_flight_commands
       - mutation_blocked
       - updated_at
+    V2SteamPartnerInventoryObservation:
+      additionalProperties: false
+      example:
+        coverage: trade_eligible
+        snapshot:
+          steam_id: steam_id
+          app_id: 0
+          context_id: "2"
+          observed_at: 2000-01-23T04:56:07.000+00:00
+          source: source
+          cache:
+            status: miss
+            stale: true
+          assets:
+          - asset_id: asset_id
+            class_id: class_id
+            instance_id: instance_id
+            quantity: 6
+            item:
+              id: 1
+              market_hash_name: market_hash_name
+              type: type
+              weapon: weapon
+              skin: skin
+              exterior: exterior
+              rarity: rarity
+              stattrak: true
+              souvenir: true
+              phase: phase
+              definition_id: 0
+              paint_index: 0
+              catalog_matched: true
+              render: ""
+            prices:
+            - "{}"
+            - "{}"
+            inspect: "{}"
+          - asset_id: asset_id
+            class_id: class_id
+            instance_id: instance_id
+            quantity: 6
+            item:
+              id: 1
+              market_hash_name: market_hash_name
+              type: type
+              weapon: weapon
+              skin: skin
+              exterior: exterior
+              rarity: rarity
+              stattrak: true
+              souvenir: true
+              phase: phase
+              definition_id: 0
+              paint_index: 0
+              catalog_matched: true
+              render: ""
+            prices:
+            - "{}"
+            - "{}"
+            inspect: "{}"
+          count: 2
+          quantity: 7
+          valuation: "{}"
+      properties:
+        coverage:
+          description: The assets Steam exposed to this authenticated viewer for trading;
+            not complete ownership.
+          enum:
+          - trade_eligible
+          type: string
+        snapshot:
+          $ref: "#/components/schemas/V2InventorySnapshot"
+      required:
+      - coverage
+      - snapshot
     V2InventoryHistoryPage:
       example:
         snapshots:
@@ -19346,4 +19801,4 @@ components:
       in: header
       name: X-API-Key
       type: apiKey
-x-openskin-sdk-operation-count: 111
+x-openskin-sdk-operation-count: 114

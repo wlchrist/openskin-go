@@ -95,6 +95,7 @@ model_v2_get_price_history_response.go
 model_v2_get_scene_response.go
 model_v2_get_steam_account_health_response.go
 model_v2_get_steam_friends_response.go
+model_v2_get_steam_partner_inventory_response.go
 model_v2_get_steam_profile_batch_response.go
 model_v2_get_steam_profile_response.go
 model_v2_get_steam_trade_eligibility_response.go
@@ -119,8 +120,11 @@ model_v2_inventory_batch_request.go
 model_v2_inventory_batch_response.go
 model_v2_inventory_batch_result.go
 model_v2_inventory_catalog_item.go
+model_v2_inventory_fetch_request.go
+model_v2_inventory_freshness.go
 model_v2_inventory_history_entry.go
 model_v2_inventory_history_page.go
+model_v2_inventory_request_proxy.go
 model_v2_inventory_snapshot.go
 model_v2_inventory_snapshot_assets_inner.go
 model_v2_inventory_snapshot_cache.go
@@ -227,6 +231,8 @@ model_v2_steam_friend_list.go
 model_v2_steam_id_formats.go
 model_v2_steam_identity_resolution.go
 model_v2_steam_login_request.go
+model_v2_steam_partner_inventory_observation.go
+model_v2_steam_partner_inventory_request.go
 model_v2_steam_profile.go
 model_v2_steam_trade_budget_usage.go
 model_v2_steam_trade_eligibility.go

@@ -172,6 +172,21 @@ type PlatformV2AutomationAPI interface {
 	ExecuteV2TradeIntentExecute(r ApiExecuteV2TradeIntentRequest) (*V2TradeIntentExecutionResponse, *http.Response, error)
 
 	/*
+		FetchV2SteamPartnerInventory Fetch a Steam partner trade inventory
+
+		Queues a private read of the trade-eligible CS2 assets Steam exposes to one connected viewer account. The optional partner token and proxy credentials are encrypted immediately. A supplied proxy handles every page and retry; the request fails rather than switching to another egress path. The result represents trade-eligible coverage; trade creation and complete owner coverage remain separate operations.
+
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@param accountId
+		@return ApiFetchV2SteamPartnerInventoryRequest
+	*/
+	FetchV2SteamPartnerInventory(ctx context.Context, accountId int64) ApiFetchV2SteamPartnerInventoryRequest
+
+	// FetchV2SteamPartnerInventoryExecute executes the request
+	//  @return V2CommandReceipt
+	FetchV2SteamPartnerInventoryExecute(r ApiFetchV2SteamPartnerInventoryRequest) (*V2CommandReceipt, *http.Response, error)
+
+	/*
 		FetchV2SteamTradeLink Fetch the connected account's inbound trade-offer link
 
 		Returns the account’s current Steam trade URL encrypted for the caller’s P-256 public key.
@@ -261,6 +276,22 @@ type PlatformV2AutomationAPI interface {
 	// GetV2SteamCommandExecute executes the request
 	//  @return V2CommandStatus
 	GetV2SteamCommandExecute(r ApiGetV2SteamCommandRequest) (*V2CommandStatus, *http.Response, error)
+
+	/*
+		GetV2SteamPartnerInventory Read an authenticated Steam partner inventory
+
+		Returns the tenant-private trade-eligible observation produced by one completed partner-inventory command. Public inventory caching remains isolated to public observations.
+
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@param accountId
+		@param commandId
+		@return ApiGetV2SteamPartnerInventoryRequest
+	*/
+	GetV2SteamPartnerInventory(ctx context.Context, accountId int64, commandId string) ApiGetV2SteamPartnerInventoryRequest
+
+	// GetV2SteamPartnerInventoryExecute executes the request
+	//  @return V2GetSteamPartnerInventoryResponse
+	GetV2SteamPartnerInventoryExecute(r ApiGetV2SteamPartnerInventoryRequest) (*V2GetSteamPartnerInventoryResponse, *http.Response, error)
 
 	/*
 		GetV2SteamTradePolicy Read the account trade policy
@@ -2395,6 +2426,219 @@ func (a *PlatformV2AutomationAPIService) ExecuteV2TradeIntentExecute(r ApiExecut
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
+type ApiFetchV2SteamPartnerInventoryRequest struct {
+	ctx                            context.Context
+	ApiService                     PlatformV2AutomationAPI
+	accountId                      int64
+	idempotencyKey                 *string
+	v2SteamPartnerInventoryRequest *V2SteamPartnerInventoryRequest
+}
+
+func (r ApiFetchV2SteamPartnerInventoryRequest) IdempotencyKey(idempotencyKey string) ApiFetchV2SteamPartnerInventoryRequest {
+	r.idempotencyKey = &idempotencyKey
+	return r
+}
+
+func (r ApiFetchV2SteamPartnerInventoryRequest) V2SteamPartnerInventoryRequest(v2SteamPartnerInventoryRequest V2SteamPartnerInventoryRequest) ApiFetchV2SteamPartnerInventoryRequest {
+	r.v2SteamPartnerInventoryRequest = &v2SteamPartnerInventoryRequest
+	return r
+}
+
+func (r ApiFetchV2SteamPartnerInventoryRequest) Execute() (*V2CommandReceipt, *http.Response, error) {
+	return r.ApiService.FetchV2SteamPartnerInventoryExecute(r)
+}
+
+/*
+FetchV2SteamPartnerInventory Fetch a Steam partner trade inventory
+
+Queues a private read of the trade-eligible CS2 assets Steam exposes to one connected viewer account. The optional partner token and proxy credentials are encrypted immediately. A supplied proxy handles every page and retry; the request fails rather than switching to another egress path. The result represents trade-eligible coverage; trade creation and complete owner coverage remain separate operations.
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param accountId
+	@return ApiFetchV2SteamPartnerInventoryRequest
+*/
+func (a *PlatformV2AutomationAPIService) FetchV2SteamPartnerInventory(ctx context.Context, accountId int64) ApiFetchV2SteamPartnerInventoryRequest {
+	return ApiFetchV2SteamPartnerInventoryRequest{
+		ApiService: a,
+		ctx:        ctx,
+		accountId:  accountId,
+	}
+}
+
+// Execute executes the request
+//
+//	@return V2CommandReceipt
+func (a *PlatformV2AutomationAPIService) FetchV2SteamPartnerInventoryExecute(r ApiFetchV2SteamPartnerInventoryRequest) (*V2CommandReceipt, *http.Response, error) {
+	var (
+		localVarHTTPMethod  = http.MethodPost
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue *V2CommandReceipt
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PlatformV2AutomationAPIService.FetchV2SteamPartnerInventory")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/v2/steam/accounts/{account_id}/partner-inventory/fetch"
+	localVarPath = strings.Replace(localVarPath, "{"+"account_id"+"}", url.PathEscape(parameterValueToString(r.accountId, "accountId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.accountId < 1 {
+		return localVarReturnValue, nil, reportError("accountId must be greater than 1")
+	}
+	if r.idempotencyKey == nil {
+		return localVarReturnValue, nil, reportError("idempotencyKey is required and must be specified")
+	}
+	if strlen(*r.idempotencyKey) < 8 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have at least 8 elements")
+	}
+	if strlen(*r.idempotencyKey) > 128 {
+		return localVarReturnValue, nil, reportError("idempotencyKey must have less than 128 elements")
+	}
+	if r.v2SteamPartnerInventoryRequest == nil {
+		return localVarReturnValue, nil, reportError("v2SteamPartnerInventoryRequest is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "Idempotency-Key", r.idempotencyKey, "simple", "")
+	// body params
+	localVarPostBody = r.v2SteamPartnerInventoryRequest
+	if r.ctx != nil {
+		// API Key Authentication
+		if auth, ok := r.ctx.Value(ContextAPIKeys).(map[string]APIKey); ok {
+			if apiKey, ok := auth["PlatformAPIKey"]; ok {
+				var key string
+				if apiKey.Prefix != "" {
+					key = apiKey.Prefix + " " + apiKey.Key
+				} else {
+					key = apiKey.Key
+				}
+				localVarHeaderParams["X-API-Key"] = key
+			}
+		}
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		if localVarHTTPResponse.StatusCode == 400 {
+			var v V2PlatformErrorResponse
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
+		}
+		if localVarHTTPResponse.StatusCode == 401 {
+			var v V2PlatformErrorResponse
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
+		}
+		if localVarHTTPResponse.StatusCode == 403 {
+			var v V2PlatformErrorResponse
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
+		}
+		if localVarHTTPResponse.StatusCode == 404 {
+			var v V2PlatformErrorResponse
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
+		}
+		if localVarHTTPResponse.StatusCode == 429 {
+			var v V2PlatformErrorResponse
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
+		}
+		if localVarHTTPResponse.StatusCode == 503 {
+			var v V2PlatformErrorResponse
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
 type ApiFetchV2SteamTradeLinkRequest struct {
 	ctx                        context.Context
 	ApiService                 PlatformV2AutomationAPI
@@ -3415,6 +3659,174 @@ func (a *PlatformV2AutomationAPIService) GetV2SteamCommandExecute(r ApiGetV2Stea
 			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 404 {
+			var v V2PlatformErrorResponse
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiGetV2SteamPartnerInventoryRequest struct {
+	ctx        context.Context
+	ApiService PlatformV2AutomationAPI
+	accountId  int64
+	commandId  string
+}
+
+func (r ApiGetV2SteamPartnerInventoryRequest) Execute() (*V2GetSteamPartnerInventoryResponse, *http.Response, error) {
+	return r.ApiService.GetV2SteamPartnerInventoryExecute(r)
+}
+
+/*
+GetV2SteamPartnerInventory Read an authenticated Steam partner inventory
+
+Returns the tenant-private trade-eligible observation produced by one completed partner-inventory command. Public inventory caching remains isolated to public observations.
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param accountId
+	@param commandId
+	@return ApiGetV2SteamPartnerInventoryRequest
+*/
+func (a *PlatformV2AutomationAPIService) GetV2SteamPartnerInventory(ctx context.Context, accountId int64, commandId string) ApiGetV2SteamPartnerInventoryRequest {
+	return ApiGetV2SteamPartnerInventoryRequest{
+		ApiService: a,
+		ctx:        ctx,
+		accountId:  accountId,
+		commandId:  commandId,
+	}
+}
+
+// Execute executes the request
+//
+//	@return V2GetSteamPartnerInventoryResponse
+func (a *PlatformV2AutomationAPIService) GetV2SteamPartnerInventoryExecute(r ApiGetV2SteamPartnerInventoryRequest) (*V2GetSteamPartnerInventoryResponse, *http.Response, error) {
+	var (
+		localVarHTTPMethod  = http.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue *V2GetSteamPartnerInventoryResponse
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "PlatformV2AutomationAPIService.GetV2SteamPartnerInventory")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/v2/steam/accounts/{account_id}/partner-inventory/{command_id}"
+	localVarPath = strings.Replace(localVarPath, "{"+"account_id"+"}", url.PathEscape(parameterValueToString(r.accountId, "accountId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"command_id"+"}", url.PathEscape(parameterValueToString(r.commandId, "commandId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.accountId < 1 {
+		return localVarReturnValue, nil, reportError("accountId must be greater than 1")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.ctx != nil {
+		// API Key Authentication
+		if auth, ok := r.ctx.Value(ContextAPIKeys).(map[string]APIKey); ok {
+			if apiKey, ok := auth["PlatformAPIKey"]; ok {
+				var key string
+				if apiKey.Prefix != "" {
+					key = apiKey.Prefix + " " + apiKey.Key
+				} else {
+					key = apiKey.Key
+				}
+				localVarHeaderParams["X-API-Key"] = key
+			}
+		}
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		if localVarHTTPResponse.StatusCode == 401 {
+			var v V2PlatformErrorResponse
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
+		}
+		if localVarHTTPResponse.StatusCode == 403 {
+			var v V2PlatformErrorResponse
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
+		}
+		if localVarHTTPResponse.StatusCode == 404 {
+			var v V2PlatformErrorResponse
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
+		}
+		if localVarHTTPResponse.StatusCode == 503 {
 			var v V2PlatformErrorResponse
 			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
 			if err != nil {
